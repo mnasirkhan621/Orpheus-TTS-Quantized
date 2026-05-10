@@ -1,5 +1,6 @@
-FROM python:3.10-slim
+FROM vllm/vllm-openai:v0.6.3.post1
 
+USER root
 ENV DEBIAN_FRONTEND=noninteractive
 
 RUN apt-get update && apt-get install -y \
@@ -10,12 +11,10 @@ RUN apt-get update && apt-get install -y \
 
 WORKDIR /app
 
-COPY requirements.txt .
-
 # Temporarily set to 0 to allow downloading models and dependencies
 ENV HF_HUB_OFFLINE=0
 
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir fastapi uvicorn websockets snac torchaudio librosa soundfile huggingface_hub numpy python-multipart
 
 # Download the required models directly into the image during the build process
 RUN python -c "from huggingface_hub import snapshot_download; snapshot_download('heydryft/Orpheus-3b-FT-AWQ')"
@@ -30,4 +29,6 @@ COPY server.py .
 
 EXPOSE 8000
 
+# Override the default vllm entrypoint
+ENTRYPOINT []
 CMD ["uvicorn", "server:app", "--host", "0.0.0.0", "--port", "8000"]
