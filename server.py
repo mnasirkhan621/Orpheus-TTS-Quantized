@@ -42,7 +42,7 @@ async def lifespan(app: FastAPI):
         trust_remote_code=True,
         max_model_len=4096,
         gpu_memory_utilization=0.75,
-        enforce_eager=False,
+        enforce_eager=True,
     )
     engine = AsyncLLMEngine.from_engine_args(engine_args)
     tokenizer = AutoTokenizer.from_pretrained(MODEL_ID, trust_remote_code=True)

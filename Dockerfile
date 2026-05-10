@@ -24,6 +24,7 @@ RUN python -c "from huggingface_hub import snapshot_download; snapshot_download(
 # Enforce offline mode at runtime
 ENV HF_HUB_OFFLINE=1
 ENV VLLM_USE_V1=0
+ENV VLLM_WORKER_MULTIPROC_METHOD=spawn
 
 COPY server.py .
 
