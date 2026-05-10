@@ -1,0 +1,11 @@
+fastapi
+uvicorn
+websockets
+vllm
+snac
+torchaudio
+librosa
+soundfile
+huggingface_hub
+numpy
+python-multipart
