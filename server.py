@@ -5,8 +5,9 @@ import uuid
 import re
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form, HTTPException
+from fastapi import FastAPI, WebSocket, WebSocketDisconnect, UploadFile, File, Form, HTTPException, Response
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 import torch
 import numpy as np
 import soundfile as sf
@@ -200,3 +201,83 @@ async def stream_audio(websocket: WebSocket):
             await websocket.close()
         except:
             pass
+
+class TTSRequest(BaseModel):
+    text: str
+    voice_id: str = "tara"
+
+@app.post("/tts")
+async def generate_tts(req: TTSRequest):
+    try:
+        text = req.text
+        voice_id = req.voice_id
+        
+        prompt_ids = [128000, 128259]
+        if voice_id in voice_cache:
+            prompt_ids.extend(voice_cache[voice_id])
+            
+        text_tokens = tokenizer.encode(f"{voice_id}: {text}", add_special_tokens=False)
+        prompt_ids.extend(text_tokens)
+        prompt_ids.append(128260)
+        
+        stop_id = tokenizer.convert_tokens_to_ids("<custom_token_2>")
+        if stop_id is None:
+            stop_id = tokenizer.encode("<custom_token_2>", add_special_tokens=False)[0]
+             
+        sampling_params = SamplingParams(
+            temperature=0.6,
+            top_p=0.9,
+            repetition_penalty=1.3,
+            presence_penalty=0.5,
+            max_tokens=2000,
+            stop_token_ids=[stop_id]
+        )
+        
+        request_id = str(uuid.uuid4())
+        results_generator = engine.generate(
+            prompt={"prompt_token_ids": prompt_ids},
+            sampling_params=sampling_params,
+            request_id=request_id
+        )
+        
+        final_output = None
+        async for request_output in results_generator:
+            final_output = request_output
+            
+        if not final_output:
+            raise HTTPException(status_code=500, detail="Generation failed")
+            
+        new_text = final_output.outputs[0].text
+        name_nums = [int(m) for m in re.findall(r"<custom_token_(\d+)>", new_text)]
+        audio_nums = [n for n in name_nums if n >= 10]
+        
+        n_full = (len(audio_nums) // 7) * 7
+        frames = []
+        for i in range(0, n_full, 7):
+            frame = []
+            valid = True
+            for pos in range(7):
+                raw_code = audio_nums[i + pos] - 10
+                snac_code = raw_code - POS_OFFSETS[pos]
+                if not (0 <= snac_code < 4096):
+                    valid = False
+                    break
+                frame.append(snac_code)
+            if valid:
+                frames.append(frame)
+                
+        if not frames:
+            raise HTTPException(status_code=500, detail="No valid audio generated")
+            
+        wav_chunk = decode_frames(frames)
+        if wav_chunk is None:
+            raise HTTPException(status_code=500, detail="Audio decoding failed")
+            
+        buffer = io.BytesIO()
+        sf.write(buffer, wav_chunk, 24000, format='WAV')
+        buffer.seek(0)
+        
+        return Response(content=buffer.read(), media_type="audio/wav")
+        
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
