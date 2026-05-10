@@ -32,8 +32,11 @@ voice_cache = {}
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     global engine, tokenizer, snac_model
+    
+    print("Loading SNAC model first to avoid CUDA deadlocks...")
+    snac_model = SNAC.from_pretrained(SNAC_MODEL_ID).eval().to(DEVICE)
+    
     print("Loading vLLM engine...")
-    os.environ["VLLM_USE_V1"] = "0"
     engine_args = AsyncEngineArgs(
         model=MODEL_ID,
         quantization="awq",
@@ -48,8 +51,6 @@ async def lifespan(app: FastAPI):
     engine = AsyncLLMEngine.from_engine_args(engine_args)
     tokenizer = AutoTokenizer.from_pretrained(MODEL_ID, trust_remote_code=True)
     
-    print("Loading SNAC model...")
-    snac_model = SNAC.from_pretrained(SNAC_MODEL_ID).eval().to(DEVICE)
     print("Models loaded successfully.")
     yield
 
@@ -137,13 +138,15 @@ async def stream_audio(websocket: WebSocket):
             top_p=0.9,
             repetition_penalty=1.3,
             presence_penalty=0.5,
-            max_tokens=2000,
-            stop_token_ids=[stop_id]
+            max_tokens=800,
+            stop_token_ids=[stop_id, 128001, 128009]
         )
         
+        print(f"Starting WebSocket generation for request: {request_id}")
         request_id = str(uuid.uuid4())
         results_generator = engine.generate(
-            prompt={"prompt_token_ids": prompt_ids},
+            prompt=None,
+            prompt_token_ids=prompt_ids,
             sampling_params=sampling_params,
             request_id=request_id
         )
@@ -233,13 +236,14 @@ async def generate_tts(req: TTSRequest):
             top_p=0.9,
             repetition_penalty=1.3,
             presence_penalty=0.5,
-            max_tokens=2000,
-            stop_token_ids=[stop_id]
+            max_tokens=800,
+            stop_token_ids=[stop_id, 128001, 128009]
         )
         
-        request_id = str(uuid.uuid4())
+        print(f"Starting generation for request: {request_id}")
         results_generator = engine.generate(
-            prompt={"prompt_token_ids": prompt_ids},
+            prompt=None,
+            prompt_token_ids=prompt_ids,
             sampling_params=sampling_params,
             request_id=request_id
         )
@@ -249,9 +253,11 @@ async def generate_tts(req: TTSRequest):
             final_output = request_output
             
         if not final_output:
+            print("Generation failed to produce output!")
             raise HTTPException(status_code=500, detail="Generation failed")
             
         new_text = final_output.outputs[0].text
+        print(f"Generation finished! Output snippet: {new_text[:200]}...")
         name_nums = [int(m) for m in re.findall(r"<custom_token_(\d+)>", new_text)]
         audio_nums = [n for n in name_nums if n >= 10]
         
