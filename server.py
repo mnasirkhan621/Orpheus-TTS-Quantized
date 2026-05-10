@@ -36,6 +36,7 @@ async def lifespan(app: FastAPI):
     engine_args = AsyncEngineArgs(
         model=MODEL_ID,
         quantization="awq",
+        dtype="float16",
         tensor_parallel_size=1,
         trust_remote_code=True,
         max_model_len=4096,
