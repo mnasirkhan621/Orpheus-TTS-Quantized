@@ -142,8 +142,8 @@ async def stream_audio(websocket: WebSocket):
             stop_token_ids=[stop_id, 128001, 128009]
         )
         
-        print(f"Starting WebSocket generation for request: {request_id}")
         request_id = str(uuid.uuid4())
+        print(f"Starting WebSocket generation for request: {request_id}")
         results_generator = engine.generate(
             prompt=None,
             prompt_token_ids=prompt_ids,
@@ -240,6 +240,7 @@ async def generate_tts(req: TTSRequest):
             stop_token_ids=[stop_id, 128001, 128009]
         )
         
+        request_id = str(uuid.uuid4())
         print(f"Starting generation for request: {request_id}")
         results_generator = engine.generate(
             prompt=None,

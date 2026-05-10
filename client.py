@@ -1,50 +1,32 @@
-import asyncio
-import websockets
-import json
-import numpy as np
-import soundfile as sf
+import requests
 import sys
 
-async def test_tts(text, voice_id="tara", output_file="output.wav"):
-    uri = "ws://localhost:8000/stream_audio"
-    
-    print(f"Connecting to {uri}...")
+RUNPOD_API_KEY = "rpa_BDCKASCJXC72J2XGKHYHB8U1ME8SIGNPGG23LVTG1wohf9"
+BASE_URL = "https://k37q06aycrlyut.api.runpod.ai"
+
+
+def generate_tts(text, voice_id="tara", output_file="output.wav"):
+    url = f"{BASE_URL}/tts"
+    headers = {"Authorization": f"Bearer {RUNPOD_API_KEY}"}
+    payload = {"text": text, "voice_id": voice_id}
+
+    print(f"Sending TTS request for voice '{voice_id}'...")
     try:
-        async with websockets.connect(uri) as websocket:
-            print(f"Connected! Requesting TTS for voice '{voice_id}'...")
-            
-            payload = {
-                "text": text,
-                "voice_id": voice_id
-            }
-            await websocket.send(json.dumps(payload))
-            
-            audio_chunks = []
-            
-            print("Receiving audio stream...")
-            try:
-                while True:
-                    chunk = await websocket.recv()
-                    # Convert raw bytes back to numpy array (Int16)
-                    pcm_data = np.frombuffer(chunk, dtype=np.int16)
-                    audio_chunks.append(pcm_data)
-                    sys.stdout.write(".")
-                    sys.stdout.flush()
-            except websockets.exceptions.ConnectionClosed:
-                print("\nStream complete.")
-                
-            if audio_chunks:
-                full_audio = np.concatenate(audio_chunks)
-                # Convert Int16 back to Float32 for soundfile saving
-                full_audio_float = full_audio.astype(np.float32) / 32767.0
-                sf.write(output_file, full_audio_float, 24000)
-                print(f"Saved generated audio to '{output_file}'!")
-            else:
-                print("No audio received.")
-                
+        response = requests.post(url, json=payload, headers=headers, timeout=120)
+        response.raise_for_status()
+
+        with open(output_file, "wb") as f:
+            f.write(response.content)
+
+        print(f"Saved {len(response.content):,} bytes to '{output_file}'")
+    except requests.exceptions.HTTPError as e:
+        print(f"HTTP error {response.status_code}: {response.text}")
+        sys.exit(1)
     except Exception as e:
         print(f"Error: {e}")
+        sys.exit(1)
+
 
 if __name__ == "__main__":
-    text_to_speak = "Hello there! This is a real-time streaming test of the Orpheus TTS server."
-    asyncio.run(test_tts(text_to_speak, "tara", "test_stream.wav"))
+    text_to_speak = "Hello there! This is a test of the Orpheus TTS server."
+    generate_tts(text_to_speak, "tara", "test_output.wav")
