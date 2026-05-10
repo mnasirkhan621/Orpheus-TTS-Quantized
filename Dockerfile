@@ -17,8 +17,8 @@ ENV HF_HUB_OFFLINE=0
 RUN pip install --no-cache-dir fastapi uvicorn websockets snac torchaudio librosa soundfile huggingface_hub numpy python-multipart
 
 # Download the required models directly into the image during the build process
-RUN python -c "from huggingface_hub import snapshot_download; snapshot_download('heydryft/Orpheus-3b-FT-AWQ')"
-RUN python -c "from huggingface_hub import snapshot_download; snapshot_download('hubertsiuzdak/snac_24khz')"
+RUN python3 -c "from huggingface_hub import snapshot_download; snapshot_download('heydryft/Orpheus-3b-FT-AWQ')"
+RUN python3 -c "from huggingface_hub import snapshot_download; snapshot_download('hubertsiuzdak/snac_24khz')"
 
 # Enforce offline mode at runtime
 ENV HF_HUB_OFFLINE=1
