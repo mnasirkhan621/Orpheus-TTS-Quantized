@@ -33,6 +33,7 @@ voice_cache = {}
 async def lifespan(app: FastAPI):
     global engine, tokenizer, snac_model
     print("Loading vLLM engine...")
+    os.environ["VLLM_USE_V1"] = "0"
     engine_args = AsyncEngineArgs(
         model=MODEL_ID,
         quantization="awq",
@@ -40,6 +41,7 @@ async def lifespan(app: FastAPI):
         tensor_parallel_size=1,
         trust_remote_code=True,
         max_model_len=4096,
+        gpu_memory_utilization=0.75,
         enforce_eager=False,
     )
     engine = AsyncLLMEngine.from_engine_args(engine_args)
