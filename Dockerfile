@@ -15,7 +15,7 @@ WORKDIR /app
 ENV HF_HUB_OFFLINE=0
 
 RUN pip install --no-cache-dir fastapi uvicorn websockets snac torchaudio librosa soundfile huggingface_hub numpy python-multipart
-RUN pip install --no-cache-dir --upgrade tokenizers transformers
+RUN pip install --no-cache-dir "tokenizers>=0.20.0" "transformers==4.44.2"
 RUN pip install --no-cache-dir autoawq
 
 # Download the required models directly into the image during the build process
