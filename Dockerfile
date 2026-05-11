@@ -16,6 +16,7 @@ ENV HF_HUB_OFFLINE=0
 
 RUN pip install --no-cache-dir fastapi uvicorn websockets snac torchaudio librosa soundfile huggingface_hub numpy python-multipart
 RUN pip install --no-cache-dir --upgrade tokenizers transformers
+RUN pip install --no-cache-dir autoawq
 
 # Download the required models directly into the image during the build process
 RUN python3 -c "from huggingface_hub import snapshot_download; snapshot_download('heydryft/Orpheus-3b-FT-AWQ')"
